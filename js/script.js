@@ -9,6 +9,10 @@ let draggedObject = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
+let player = new Image();
+player.src = 'assets/player-sprite.png';
+
+
 canvas.style.touchAction = 'none';
 
 function drawPolygon(centerX, centerY, sides, radius, color) {
@@ -63,8 +67,9 @@ function renderObject(object) {
 
 	switch (object.type) {
 		case 'Player':
-			ctx.fillStyle = object.color;
-			ctx.fillRect(object.x, object.y, object.width, object.height);
+            object.width = 64;
+            object.height = 64;
+			ctx.drawImage(player, 0, 0, 64, 64, object.x, object.y, object.width, object.height);
 			break;
 		case 'Enemy':
 			drawPolygon(centerX, centerY, 6, Math.min(object.width, object.height) / 2, object.color);
@@ -89,11 +94,14 @@ function renderObject(object) {
 	}
 }
 
+// Function to render the entire scene
 function renderScene() {
+    scoreElement.textContent = String(score);
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	objects.forEach(renderObject);
 }
 
+// Function to get the object at a specific position
 function getObjectAtPosition(x, y) {
 	for (let i = objects.length - 1; i >= 0; i -= 1) {
 		const object = objects[i];
@@ -110,6 +118,46 @@ function getObjectAtPosition(x, y) {
 	return null;
 }
 
+// Function to check for collisions between the player and other objects
+function checkCollisions() {
+    const player = objects.find((obj) => obj.type === 'Player');
+    if (!player) {
+        return;
+    }
+    objects.forEach((object) => {
+        if (object.id === player.id) {
+            return;
+        }
+        if (
+            player.x < object.x + object.width &&
+            player.x + player.width > object.x &&
+            player.y < object.y + object.height &&
+            player.y + player.height > object.y
+        ) {
+            if (object.type === 'Coin') {
+                score += 10;
+                scoreElement.textContent = String(score);
+                objects.splice(objects.indexOf(object), 1);
+            } else if (object.type === 'Power-up') {
+                // For power-up we can just increase the score for now
+                score += 20;
+                scoreElement.textContent = String(score);
+                objects.splice(objects.indexOf(object), 1);
+            } else if (object.type === 'Obstacle') {
+                // if obstacle he cant move just can't move in the direction of the obstacle
+                player.x -= 10; // Move player back
+                scoreElement.textContent = String(score);
+            } else if (object.type === 'Enemy') {
+                alert('Game Over! Final Score: ' + score);
+                objects.length = 0;
+                score = 0;
+                scoreElement.textContent = String(score);
+            }
+        }
+    });
+}
+
+// Function to add a new object to the scene
 function addObject(type, x, y) {
 	let width = 30;
 	let height = 30;
@@ -156,6 +204,59 @@ function addObject(type, x, y) {
 	return object;
 }
 
+// Function to move the player using keyboard controls
+function movePlayer(dx, dy) {
+    const player = objects.find((obj) => obj.type === 'Player');
+    if (!player) {
+        return;
+    }
+
+    // Test the new position obstacles
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+
+    for (let i = 0; i < objects.length; i++) {
+        const object = objects[i];
+        if (object.type === 'Obstacle' && object.id !== player.id) {
+            if (
+                newX < object.x + object.width &&
+                newX + player.width > object.x &&
+                newY < object.y + object.height &&
+                newY + player.height > object.y
+            ) {
+                // Collision detected, don't move
+                return;
+            }
+        }
+    }
+
+    player.x = newX;
+    player.y = newY;
+}
+
+// Adding keyboard controls for player movement
+document.addEventListener('keydown', (e) => {
+	const step = 10;
+	switch (e.key) {
+		case 'ArrowUp':
+			movePlayer(0, -step);
+			break;
+		case 'ArrowDown':
+			movePlayer(0, step);
+			break;
+		case 'ArrowLeft':
+			movePlayer(-step, 0);
+			break;
+		case 'ArrowRight':
+			movePlayer(step, 0);
+			break;
+	}
+	checkCollisions();
+	renderScene();
+});
+
+
+
 const tools = document.querySelectorAll('.tools');
 tools.forEach((tool) => {
 	tool.addEventListener('dragstart', (e) => {
@@ -175,7 +276,6 @@ canvas.addEventListener('drop', (e) => {
 
 	const object = addObject(toolId, x, y);
 	if (object && object.type === 'Coin') {
-		score += 1;
 		scoreElement.textContent = String(score);
 	}
 
@@ -205,8 +305,34 @@ canvas.addEventListener('pointermove', (e) => {
 	const rect = canvas.getBoundingClientRect();
 	const x = e.clientX - rect.left;
 	const y = e.clientY - rect.top;
-	draggedObject.x = x - dragOffsetX;
-	draggedObject.y = y - dragOffsetY;
+	const newX = x - dragOffsetX;
+	const newY = y - dragOffsetY;
+
+	// If dragging the player check for obstacle collision
+	if (draggedObject.type === 'Player') {
+		let canMove = true;
+		for (let i = 0; i < objects.length; i++) {
+			const object = objects[i];
+			if (object.type === 'Obstacle' && object.id !== draggedObject.id) {
+				if (
+					newX < object.x + object.width &&
+					newX + draggedObject.width > object.x &&
+					newY < object.y + object.height &&
+					newY + draggedObject.height > object.y
+				) {
+					canMove = false;
+					break;
+				}
+			}
+		}
+		if (!canMove) {
+			return;
+		}
+	}
+
+	draggedObject.x = newX;
+	draggedObject.y = newY;
+	checkCollisions();
 	renderScene();
 });
 
@@ -219,6 +345,8 @@ function stopDragging(e) {
 	if (canvas.hasPointerCapture(e.pointerId)) {
 		canvas.releasePointerCapture(e.pointerId);
 	}
+	checkCollisions();
+	renderScene();
 }
 
 canvas.addEventListener('pointerup', stopDragging);
