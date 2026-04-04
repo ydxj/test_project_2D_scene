@@ -8,6 +8,7 @@ const objects = [];
 let draggedObject = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+const ENEMY_SPEED = 140;
 
 let player = new Image();
 player.src = 'assets/player-sprite.png';
@@ -101,6 +102,30 @@ function renderScene() {
 	objects.forEach(renderObject);
 }
 
+function updateEnemies(deltaSeconds) {
+	objects.forEach((object) => {
+		if (object.type !== 'Enemy') {
+			return;
+		}
+
+		if (typeof object.directionX !== 'number') {
+			object.directionX = 1;
+		}
+
+		object.x += object.directionX * ENEMY_SPEED * deltaSeconds;
+
+		if (object.x <= 0) {
+			object.x = 0;
+			object.directionX = 1;
+		}
+
+		if (object.x + object.width >= canvas.width) {
+			object.x = canvas.width - object.width;
+			object.directionX = -1;
+		}
+	});
+}
+
 // Function to get the object at a specific position
 function getObjectAtPosition(x, y) {
 	for (let i = objects.length - 1; i >= 0; i -= 1) {
@@ -148,10 +173,14 @@ function checkCollisions() {
                 player.x -= 10; // Move player back
                 scoreElement.textContent = String(score);
             } else if (object.type === 'Enemy') {
-                alert('Game Over! Final Score: ' + score);
-                objects.length = 0;
-                score = 0;
+                score = score - 10;
                 scoreElement.textContent = String(score);
+                if (score < 0) {
+                    alert('Game Over!');
+                    objects.length = 0;
+                    score = 0;
+                    scoreElement.textContent = String(score);
+                }
             }
         }
     });
@@ -197,6 +226,7 @@ function addObject(type, x, y) {
 		width,
 		height,
 		color,
+		directionX: type === 'Enemy' ? 1 : 0,
 	};
 
 	nextId += 1;
@@ -252,7 +282,6 @@ document.addEventListener('keydown', (e) => {
 			break;
 	}
 	checkCollisions();
-	renderScene();
 });
 
 
@@ -351,3 +380,22 @@ function stopDragging(e) {
 
 canvas.addEventListener('pointerup', stopDragging);
 canvas.addEventListener('pointercancel', stopDragging);
+
+let lastTimestamp = 0;
+
+function gameLoop(timestamp) {
+	if (!lastTimestamp) {
+		lastTimestamp = timestamp;
+	}
+
+	const deltaSeconds = (timestamp - lastTimestamp) / 1000;
+	lastTimestamp = timestamp;
+
+	updateEnemies(deltaSeconds);
+	checkCollisions();
+	renderScene();
+
+	requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
