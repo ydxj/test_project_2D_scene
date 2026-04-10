@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <canvas width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.querySelector("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const params = new URLSearchParams(window.location.search);
+        const size = parseInt(params.get("cell_sizes"), 10) || 50;
+
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.src = "https://picsum.photos/800/400";
+
+        image.onload = function () {
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < canvas.height; y += size) {
+                for (let x = 0; x < canvas.width; x += size) {
+                    let colors = calculateAverageColor(x, y, size, pixels);
+                    let [r, g, b] = colors;
+
+                    ctx.fillStyle = `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+                    ctx.fillRect(x, y, size - 1, size - 1);
+                }
+            }
+        };
+
+        function calculateAverageColor(x, y, size, pixels) {
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let j = y; j < y + size; j++) {
+                for (let i = x; i < x + size; i++) {
+                    if (i >= canvas.width || j >= canvas.height) continue;
+                    const index = (j * canvas.width + i) * 4;
+                    r += pixels[index];
+                    g += pixels[index + 1];
+                    b += pixels[index + 2];
+                    count++;
+                }
+            }
+            return [r / count, g / count, b / count];
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <canvas width="800" height="400"></canvas>
+
+    <script>
+        const canvas = document.querySelector("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.src = "https://picsum.photos/800/400";
+
+        const pieces = [];
+        const cols = 10;
+        const rows = 5;
+        const duration = 2600;
+        let animationStart = 0;
+        let finished = false;
+
+        image.onload = () => {
+            devidedImage();
+            requestAnimationFrame(animate);
+        };
+
+        function devidedImage(){
+            const pieceWidth = canvas.width / cols;
+            const pieceHeight = canvas.height / rows;
+
+            pieces.length = 0;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const targetX = col * pieceWidth;
+                    const targetY = row * pieceHeight;
+
+                    const randomX = Math.random() * (canvas.width + 400) - 200;
+                    const randomY = Math.random() * (canvas.height + 400) - 200;
+
+                    pieces.push({
+                        sx: targetX,
+                        sy: targetY,
+                        sw: pieceWidth,
+                        sh: pieceHeight,
+                        fromX: randomX,
+                        fromY: randomY,
+                        toX: targetX,
+                        toY: targetY,
+                        delay: Math.random() * 500
+                    });
+                }
+            }
+
+            shufflePieces();
+        }
+
+        function shufflePieces() {
+            for (let i = pieces.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+            }
+        }
+
+        function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
+        }
+
+        function animate(timestamp) {
+            if (!animationStart) animationStart = timestamp;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (const piece of pieces) {
+                const elapsed = timestamp - animationStart - piece.delay;
+                const t = Math.max(0, Math.min(1, elapsed / duration));
+                const p = easeOutCubic(t);
+
+                const x = piece.fromX + (piece.toX - piece.fromX) * p;
+                const y = piece.fromY + (piece.toY - piece.fromY) * p;
+
+                ctx.drawImage(image,piece.sx,piece.sy,piece.sw,piece.sh,x,y,piece.sw,piece.sh);
+            }
+
+            if (!finished) {
+                const totalElapsed = timestamp - animationStart;
+                if (totalElapsed < duration + 600) {
+                    requestAnimationFrame(animate);
+                } else {
+                    finished = true;
+                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

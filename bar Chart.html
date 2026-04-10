@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <canvas width="300" height="300"></canvas>
+
+    <script>
+      const canvas = document.querySelector("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const data = [250, 80, 150];
+      const colors = ["red", "green", "blue"];
+      const barWidth = 50;
+      const gap = 20;
+
+      let currentScale = 0;
+      let targetScale = 0;
+      let currentIndex = 0;
+      let direction = 1;
+
+      canvas.addEventListener("mouseenter", () => {
+        direction = 1;
+        currentIndex = 0;
+        currentScale = 0;
+        targetScale = 1;
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        direction = -1;
+        currentIndex = data.length - 1;
+        currentScale = 1;
+        targetScale = 0;
+      });
+
+      function drawChart() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        currentScale += (targetScale - currentScale) * 0.08;
+
+        data.forEach((value, index) => {
+          const x = index * (barWidth + gap) + gap;
+
+          if (direction === 1) {
+            if (index < currentIndex) {
+              ctx.fillStyle = colors[index];
+              ctx.fillRect(x, canvas.height - value, barWidth, value);
+            } else if (index === currentIndex) {
+              const animatedHeight = value * currentScale;
+              ctx.fillStyle = colors[index];
+              ctx.fillRect(
+                x,
+                canvas.height - animatedHeight,
+                barWidth,
+                animatedHeight,
+              );
+
+              if (animatedHeight + 1 > value) {
+                currentIndex++;
+                currentScale = 0;
+              }
+            }
+          } else {
+            if (index < currentIndex) {
+              ctx.fillStyle = colors[index];
+              ctx.fillRect(x, canvas.height - value, barWidth, value);
+            } else if (index === currentIndex) {
+              const animatedHeight = value * currentScale;
+              ctx.fillStyle = colors[index];
+              ctx.fillRect(
+                x,
+                canvas.height - animatedHeight,
+                barWidth,
+                animatedHeight,
+              );
+
+              if (animatedHeight < 1) {
+                currentIndex--;
+                currentScale = 1;
+              }
+            }
+          }
+        });
+
+        requestAnimationFrame(drawChart);
+      }
+
+      drawChart();
+    </script>
+  </body>
+</html>
